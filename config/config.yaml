@@ -1,0 +1,25 @@
+exp_name: # WandB run name
+entity: # WandB user id
+project: # WandB project name
+seed: # seed
+offline: # WandB offline mode
+
+train_config:
+  batch_size: 
+  lr: 
+  optimizer:
+    name: 
+  scheduler:
+    name: 
+    params:
+  token_max_len: 
+  valid_size: 
+  test_size: 
+  induce_align: 
+
+model_config:
+  model_name: 
+
+data_config:
+  dataset_name: 
+  data_cleaning:

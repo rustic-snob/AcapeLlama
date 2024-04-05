@@ -12,7 +12,7 @@
 
 
 ### BackBone Selected
-
+* yanolja/EEVE-Korean-Instruct-2.8B-v1.0
 
 ### Tech Stacks
 * Pytorch 

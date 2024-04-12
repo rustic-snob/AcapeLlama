@@ -5,8 +5,8 @@ from rouge import Rouge
 import numpy as np
 
 # semantic similarity
-def eval_semantic_sim(model, tokenizer, golden_label, predicted_label, max_length = 512):
-    golden_label_string = ' '.join(golden_label)
+def eval_semantic_sim(model, tokenizer, golden_lyrics, predicted_label, max_length = 512):
+    golden_label_string = golden_lyrics
     predicted_label_string = ' '.join(predicted_label)
     
     print("golden_label_string:", golden_label_string)
@@ -77,11 +77,13 @@ def calculate_triplet(word_gen, word_orig, inverted_normalized_df_dict):
 
     return (rouge_score, tfidf_score, checked)
 
-def eval_lexical_sim(generated_line, original_lyrics, inverted_normalized_df_dict):
-    original_lyrics = ' '.join(original_lyrics)
+def eval_lexical_sim(generated_line, original_lyrics_string, inverted_normalized_df_dict):
     generated_line = ' '.join(generated_line)
-    original_words = original_lyrics.split()
     generated_words = generated_line.split()
+    
+    lyrics_string_only_space = original_lyrics_string.replace('\n', ' ')
+    original_words = lyrics_string_only_space.split()
+
 
     # Construct the score matrix using list comprehensions
     scores_matrix = np.array([[calculate_triplet(w_g, w_o, inverted_normalized_df_dict) for w_o in original_words] for w_g in generated_words])

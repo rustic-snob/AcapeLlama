@@ -3,12 +3,12 @@ import pprint
 from datetime import datetime, timedelta, timezone
 
 import yaml
-from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
-from pytorch_lightning.loggers import WandbLogger
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, Callback
+from lightning.pytorch.loggers import WandbLogger
 from tqdm.auto import tqdm
 
 
-def prepare_run(CFG, args):
+def prepare_experiment(CFG, args):
     CFG = _build_config(CFG, args)
 
     pprint.pprint(CFG, width=20, indent=4)
@@ -24,7 +24,6 @@ def prepare_run(CFG, args):
         save_dir=save_path,
         offline=CFG["offline"],
     )
-    wandb_logger.experiment.config.update(CFG)
 
     return CFG, wandb_logger
 
@@ -89,11 +88,40 @@ def load_callbacks(CFG):
                                  save_last=False,
                                  save_weights_only=True,
                                  verbose=True,
-                                 dirpath=f"{CFG["save_path"]}/checkpoints",
+                                 dirpath=f"{CFG['save_path']}/checkpoints",
                                  filename="{epoch}-{val_loss:.4f}",
                                  mode='min')
     
-    return [lr_monitor, checkpoint]
+    class LoRACheckpoint(Callback):
+        def __init__(self, monitor, save_top_k, dirpath, mode) :
+            super().__init__()
+            self.dirpath = dirpath
+            self.monitor = monitor
+            self.save_top_k = save_top_k
+            self.mode = mode
+            self.checkpoints = []
+
+        def on_validation_end(self, trainer, pl_module):
+            current_value = trainer.callback_metrics.get(self.monitor)
+            if current_value is None:
+                print(f"Monitored metric {self.monitor} not found.")
+                return
+
+            if len(self.checkpoints) < self.save_top_k or self._is_improvement(current_value):
+                # Save the model
+                filename = self.dirpath + f"/epoch: {trainer.current_epoch} - loss: {current_value:.4f}"
+                pl_module.LM.save_pretrained(filename)
+                self.checkpoints.append((current_value, filename))
+
+        def _is_improvement(self, current_value):
+            worst_value = min(self.checkpoints, key=lambda x: x[0] if self.mode == 'max' else -x[0])[0] if self.checkpoints else None
+            return current_value > worst_value if self.mode == 'max' else current_value < worst_value
+    
+    return [lr_monitor, LoRACheckpoint(dirpath=f"{CFG['save_path']}/checkpoints",
+                                       monitor='val_loss',
+                                       save_top_k=CFG['train_config']['save_top_k'],
+                                       mode='min',
+                                       )]
 
 def print_trainable_parameters(model):
     """

@@ -1,10 +1,6 @@
 import re
-import pickle
-import torch
-import yaml
 import pandas as pd
-import pytorch_lightning as pl
-import re
+import lightning.pytorch as pl
 
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader
@@ -20,13 +16,19 @@ class LyricsDataset(Dataset):
         self.train = train
 
     def __getitem__(self, idx):
-        inputs = {key: val[idx].clone().detach()
-                for key, val in self.inputs.items()}
-        
-        return inputs
+        if self.train:
+            inputs = {key: val[idx].clone().detach()
+                    for key, val in self.inputs.items()}
+            
+            return inputs
+        else:
+            return self.inputs[idx]
         
     def __len__(self):
-        return len(self.inputs['input_ids'])
+        if self.train:
+            return len(self.inputs['input_ids'])
+        else:
+            return len(self.inputs)
 
 class Dataloader(pl.LightningDataModule):
     
@@ -50,18 +52,25 @@ class Dataloader(pl.LightningDataModule):
         Returns:
         inputs: Dict({'input_ids', 'attention_mask', 'labels', ...}), 각 tensor(num_data, max_length)
         """
-        
         rows = []
-        for _, row in x.iterrows():
-            for m, l in zip(row['mungchi'], row['label']):
-                new_row = row.to_dict()  
-                new_row['mungchi'] = list(map(str,m)) 
-                new_row['label'] = l     
-                rows.append(new_row) 
+        for _, row in tqdm(x.iterrows()):
+            try:
+                for idx, (m, l) in enumerate(zip(row['mungchi'], row['label'])):
+                    new_row = row.to_dict()  
+                    new_row['mungchi'] = list(map(str,m)) 
+                    new_row['label'] = l
+                    if re.match(r'^[가-힣\s]+$', ''.join(new_row['label'])):
+                        rows.append(new_row) 
+            except:
+                pass
 
         # Create a new DataFrame from the list of new rows
         x = pd.DataFrame(rows)
-
+        
+        x['num_syllable'] = x['mungchi'].apply(lambda y: sum([int(i) for i in y]))
+        
+        x = x[x['num_syllable'].between(3, 30)]
+        
         # Reset the index of the new DataFrame
         x.reset_index(drop=True, inplace=True)
         
@@ -75,14 +84,14 @@ class Dataloader(pl.LightningDataModule):
         
         prompts_list = x.apply(lambda row: prompt_template.format(prompt=f"{instruction} 음절 수는 [{' / '.join(row['mungchi'])}], 제목은 [{row['title']}], 장르는 [{row['genre']}]에요."), axis=1)
             
+
+        if self.CFG['train_config']['induce_align']:
+            x['labels'] = x.apply(lambda row: ' / '.join([f"({m}) {l}" for m, l in zip(row['mungchi'], row['label'])]), axis=1)
+        else:
+            x['labels'] = x.apply(lambda row: ' / '.join(row['label']), axis=1)
+        answers_list = x['labels'].tolist()
+        
         if train:
-            if self.CFG['induce_align']:
-                x['labels'] = x.apply(lambda row: ' / '.join([f"({m}) {l}" for m, l in zip(row['mungchi'], row['label'])]), axis=1)
-            else:
-                x['labels'] = x.apply(lambda row: ' / '.join(row['label']), axis=1)
-                
-            answers_list = x['labels'].tolist()
-            
             inputs = self.tokenizer(
                 [p+a for p, a in zip(prompts_list, answers_list)],
                 return_tensors='pt',
@@ -99,16 +108,8 @@ class Dataloader(pl.LightningDataModule):
 
             return inputs
 
-        else:          
-            inputs = self.tokenizer(
-                prompts_list.tolist(),
-                return_tensors='pt',
-                padding=True,
-                max_length="longest",
-                add_special_tokens=True,
-            )
-
-            return inputs
+        else:
+            return prompts_list.tolist(), answers_list
 
     def preprocessing(self, x, train=False):
         dc = DataCleaning(self.CFG['data_config']['data_cleaning'])
@@ -116,7 +117,7 @@ class Dataloader(pl.LightningDataModule):
         if train:
             x = dc.process(x)    
             train_x, val_x = train_test_split(x,
-                                            test_size=self.CFG['train']['test_size'],
+                                            test_size=self.CFG['train_config']['test_size'],
                                             shuffle=True,
                                             random_state=self.CFG['seed'])
             
@@ -127,9 +128,9 @@ class Dataloader(pl.LightningDataModule):
         
         else:
             x = dc.process(x) 
-            predict_inputs = self.tokenizing(x, train=False)
+            predict_inputs, predict_answer_list = self.tokenizing(x, train=False)
             
-            return predict_inputs
+            return predict_inputs, predict_answer_list
 
     def setup(self, stage='fit'):
         if stage == 'fit':
@@ -139,17 +140,18 @@ class Dataloader(pl.LightningDataModule):
             self.val_dataset = LyricsDataset(val, train=True)
         else:
             # 평가 데이터 호출
-            predict = self.preprocessing(self.predict_df)
+            predict, predict_answer_list = self.preprocessing(self.predict_df)
             self.predict_dataset = LyricsDataset(predict)
+            self.predict_answer_list = predict_answer_list
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.CFG['train']['batch_size'], shuffle=True)
+        return DataLoader(self.train_dataset, batch_size=self.CFG['train_config']['batch_size'], shuffle=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.CFG['train']['batch_size'], shuffle=False)
+        return DataLoader(self.val_dataset, batch_size=self.CFG['train_config']['batch_size'], shuffle=False)
 
     def predict_dataloader(self):
-        return DataLoader(self.predict_dataset, batch_size=self.CFG['train']['batch_size'], shuffle=False)
+        return DataLoader(self.predict_dataset, batch_size=self.CFG['train_config']['batch_size'], shuffle=False)
     
 class DataCleaning():
     def __init__(self, select_list):
@@ -174,17 +176,37 @@ class DataCleaning():
         df = df[~df['genre'].str.contains('-')]
                     
         return df
+    
+    def advisory_filtering(self, df):
+        df = df[~df['title'].str.contains('19금')]
+                    
+        return df
+    
+    def title_cleaning(self, df):
+        df['title'] = df['title'].str.replace(r'\(.*\)', '')
+        df['title'] = df['title'].str.replace('\s?19금\s?', '')
+                    
+        return df
+    
+    def no_total(self, df):
+        df = df[df['sampling_strategy'] != 'total']
+        
+        return df
 
 
 def load_data(CFG):
     """
     학습 데이터와 테스트 데이터 DataFrame 가져오기
     """
-        
+    
     df = pd.read_json(f"./data/ready/{CFG['data_config']['dataset_name']}.json", encoding='utf-8-sig') 
     df.dropna(inplace=True)
-    if CFG['test_size']:
+    
+    if CFG['debug']:
+        df = df.sample(n=100, random_state=CFG['seed'])
+    
+    if CFG['train_config']['test_size']:
         train_valid_df, predict_df = train_test_split(df, shuffle = True, test_size=CFG['train_config']['test_size'], random_state=CFG['seed'])
-        
+        df.to_json(f"{CFG['save_path']}/unpredicted.json", force_ascii=False, orient = 'records', indent=4)
         return train_valid_df, predict_df
     return df, None

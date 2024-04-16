@@ -1,6 +1,8 @@
 # Customized Ignore file for Python projects
 temp.ipynb
 config/use_config.yaml
+results
+data/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

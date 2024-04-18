@@ -3,6 +3,7 @@ temp.ipynb
 config/use_config.yaml
 results
 data/*
+!data/EDA.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

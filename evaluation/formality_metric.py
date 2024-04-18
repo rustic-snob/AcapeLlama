@@ -1,53 +1,53 @@
 import numpy as np
 
-def eval_form(golden_mungchi, predicted_mungchi):
+def eval_form(golden_mungchi_integer, predict_mungchi_integer):
     # Make sure the two lists have the same length
-    if len(golden_mungchi) > len(predicted_mungchi):
-        total = len(golden_mungchi)
-        predicted_mungchi += [0] * (total - len(predicted_mungchi))
-    elif len(golden_mungchi) < len(predicted_mungchi):
-        total = len(predicted_mungchi)
-        golden_mungchi += [0] * (total - len(golden_mungchi))
+    if len(golden_mungchi_integer) > len(predict_mungchi_integer):
+        total = len(golden_mungchi_integer)
+        predicted_mungchi += [0] * (total - len(predict_mungchi_integer))
+    elif len(golden_mungchi_integer) < len(predict_mungchi_integer):
+        total = len(predict_mungchi_integer)
+        golden_mungchi_integer += [0] * (total - len(golden_mungchi_integer))
     else:
-        total = len(golden_mungchi)
+        total = len(golden_mungchi_integer)
         
     # Calculate accuracy
-    correct_list = [x == y for x, y in zip(golden_mungchi, predicted_mungchi)]
+    correct_list = [x == y for x, y in zip(golden_mungchi_integer, predict_mungchi_integer)]
     accuracy = sum(correct_list) / total
     
     # Calculate MSE
-    golden_mungchi_flat = np.array(golden_mungchi).flatten()
-    predicted_mungchi_flat = np.array(predicted_mungchi).flatten()
+    golden_mungchi_flat = np.array(golden_mungchi_integer).flatten()
+    predicted_mungchi_flat = np.array(predict_mungchi_integer).flatten()
     squred_error_list = [(x - y) ** 2 for x, y in zip(golden_mungchi_flat, predicted_mungchi_flat)]
     mse = np.mean(squred_error_list)
     
     return accuracy, mse
 
-def eval_ours_form(golden_mungchi, predicted_mungchi):
+def eval_our_form(golden_mungchi_integer, predict_mungchi_integer):
     # Make sure the two lists have the same length
-    if len(golden_mungchi) > len(predicted_mungchi):
-        total = len(golden_mungchi)
-        predicted_mungchi += [0] * (total - len(predicted_mungchi))
-    elif len(golden_mungchi) < len(predicted_mungchi):
-        total = len(predicted_mungchi)
-        golden_mungchi += [0] * (total - len(golden_mungchi))
+    if len(golden_mungchi_integer) > len(predict_mungchi_integer):
+        total = len(golden_mungchi_integer)
+        predict_mungchi_integer += [0] * (total - len(predict_mungchi_integer))
+    elif len(golden_mungchi_integer) < len(predict_mungchi_integer):
+        total = len(predict_mungchi_integer)
+        golden_mungchi_integer += [0] * (total - len(golden_mungchi_integer))
     else:
-        total = len(golden_mungchi)
+        total = len(golden_mungchi_integer)
         
     # Calculate Ours MSE
-    golden_mungchi_flat = np.array(golden_mungchi).flatten()
-    predicted_mungchi_flat = np.array(predicted_mungchi).flatten()
+    golden_mungchi_flat = np.array(golden_mungchi_integer).flatten()
+    predicted_mungchi_flat = np.array(predict_mungchi_integer).flatten()
 
     ours_mse_list = []
     for golden, predict in zip(golden_mungchi_flat, predicted_mungchi_flat):
         if abs(golden - predict) > 2:
-            ours_mse = 0.0
+            our_mse = 0.0
         elif abs(golden - predict) > 0:
-            ours_mse = 0.5
+            our_mse = 0.5
         elif abs(golden - predict) == 0:
-            ours_mse = 1.0
-        ours_mse_list.append(ours_mse)
+            our_mse = 1.0
+        ours_mse_list.append(our_mse)
 
-    ours_mse = np.mean(ours_mse_list)
+    our_mse = np.mean(ours_mse_list)
     
-    return ours_mse
+    return our_mse

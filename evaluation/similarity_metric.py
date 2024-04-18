@@ -1,43 +1,124 @@
 import torch
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
 from rouge import Rouge
+from nltk.translate.bleu_score import sentence_bleu
 import numpy as np
 
 # semantic similarity
-def eval_semantic_sim(model, tokenizer, golden_lyrics, predicted_label, max_length = 512):
-    golden_label_string = golden_lyrics
-    predicted_label_string = ' '.join(predicted_label)
-    
-    print("golden_label_string:", golden_label_string)
-    print("predicted_label_string:", predicted_label_string)
+def eval_semantic_sim(model, tokenizer, golden_lyrics, predict_mungchi_string, max_length = 512):
+    golden_lyrics_string = golden_lyrics
+    predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
     
     # Encode the labels and convert to tensors
-    golden_label_encoded = tokenizer.encode_plus(golden_label_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
-    predicted_label_encoded = tokenizer.encode_plus(predicted_label_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
+    golden_lyrics_encoded = tokenizer.encode_plus(golden_lyrics_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
+    predict_mungchi_string_encoded = tokenizer.encode_plus(predict_mungchi_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
 
     # Get the embeddings
     with torch.no_grad():
-        golden_label_output = model(**golden_label_encoded)
-        predicted_label_output = model(**predicted_label_encoded)
+        golden_lyrics_output = model(**golden_lyrics_encoded)
+        predict_mungchi_string_output = model(**predict_mungchi_string_encoded)
         
     # Apply mean pooling to get a single vector per label
-    golden_label_embeddings = golden_label_output[0].mean(dim=1)
-    predicted_label_embeddings = predicted_label_output[0].mean(dim=1)
+    golden_lyrics_embeddings = golden_lyrics_output[0].mean(dim=1)
+    predict_mungchi_string_embeddings = predict_mungchi_string_output[0].mean(dim=1)
 
     # Calculate cosine similarity
-    similarity = cosine_similarity(golden_label_embeddings, predicted_label_embeddings)
+    similarity = cosine_similarity(golden_lyrics_embeddings, predict_mungchi_string_embeddings)
 
     # Print the similarity score
-    return similarity
+    return similarity[0][0]
 
 # lexical similarity
+def calculate_bleu(reference_texts, candidate_text):
+    reference_tokens = [ref.split() for ref in reference_texts]
+    candidate_tokens = candidate_text.split()
+    return sentence_bleu(reference_tokens, candidate_tokens)
+
+def eval_lexical_sim_bleu(golden_lyrics, predict_mungchi_string):
+    golden_lyrics_string_in_list = [golden_lyrics]
+    predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
+    
+    return calculate_bleu(golden_lyrics_string_in_list, predict_mungchi_string)
+
+def levenshtein_distance(s1, s2):
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
+
+def eval_lexical_sim_levenshtein(golden_lyrics, predict_mungchi_string):
+    golden_lyrics_string = golden_lyrics
+    predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
+    
+    # Calculate the Levenshtein distance
+    return levenshtein_distance(golden_lyrics_string, predict_mungchi_string)
+
+def cosine_sim(text1, text2):
+    vectorizer = CountVectorizer()
+    tfidf = vectorizer.fit_transform([text1, text2])
+    return cosine_similarity(tfidf)[0, 1]
+
+def eval_lexical_sim_cos(golden_lyrics, predict_mungchi_string):
+    golden_lyrics_string = golden_lyrics
+    predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
+    
+    return cosine_sim(golden_lyrics_string, predict_mungchi_string)
+
+def jaccard_similarity(set1, set2):
+    intersection = set1.intersection(set2)
+    union = set1.union(set2)
+    return len(intersection) / len(union)
+
+def eval_lexical_sim_jaccard(golden_lyrics, predict_mungchi_string):
+    golden_lyrics_string = golden_lyrics
+    predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
+    
+    set1 = set(golden_lyrics_string.split())
+    set2 = set(predict_mungchi_string.split())
+    
+    return jaccard_similarity(set1, set2)
+
+def calculate_rouge(hypothesis, reference):
+    rouge = Rouge()
+    scores = rouge.get_scores(hypothesis, reference)
+    return scores
+
+def eval_lexical_sim_rouge(golden_lyrics, predict_mungchi_string):
+    golden_lyrics_string = golden_lyrics
+    predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
+    rouge_scores = calculate_rouge(golden_lyrics_string, predict_mungchi_string)
+    rouge_unigram_recall = rouge_scores[0]['rouge-1']['r']
+    rouge_bigram_recall = rouge_scores[0]['rouge-2']['r']
+    
+    return rouge_unigram_recall, rouge_bigram_recall
+
+def print_lexical_sim_total(golden_lyrics, predict_mungchi_string):
+    print(f"rouge : {eval_lexical_sim_rouge(golden_lyrics, predict_mungchi_string)}")
+    print(f"levenshtein: {eval_lexical_sim_levenshtein(golden_lyrics, predict_mungchi_string)}")
+    print(f"cosine: {eval_lexical_sim_cos(golden_lyrics, predict_mungchi_string)}")
+    print(f"jaccard: {eval_lexical_sim_jaccard(golden_lyrics, predict_mungchi_string)}")
+
+# with tf-idf matrix similarity
 def get_full_lyrics_list(full_dataframe):
     # 'lyrics' 열의 값들을 리스트로 변환 후 set으로 중복 제거
     unique_lyrics_set = set(full_dataframe['lyrics'])
     # 중복이 제거된 가사들을 리스트로 변환
     lyrics_list = list(unique_lyrics_set)
-    print("num of songs : ", len(lyrics_list))
     return lyrics_list
 
 def get_inverted_tfidf_dictionary(corpus):

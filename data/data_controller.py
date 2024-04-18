@@ -117,7 +117,7 @@ class Dataloader(pl.LightningDataModule):
         if train:
             x = dc.process(x)    
             train_x, val_x = train_test_split(x,
-                                            test_size=self.CFG['train_config']['test_size'],
+                                            test_size=self.CFG['train_config']['valid_size'],
                                             shuffle=True,
                                             random_state=self.CFG['seed'])
             

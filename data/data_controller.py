@@ -54,22 +54,36 @@ class Dataloader(pl.LightningDataModule):
         """
         rows = []
         for _, row in tqdm(x.iterrows()):
-            try:
-                for idx, (m, l) in enumerate(zip(row['mungchi'], row['label'])):
-                    new_row = row.to_dict()  
-                    new_row['mungchi'] = list(map(str,m)) 
-                    new_row['label'] = l
-                    if re.match(r'^[가-힣\s]+$', ''.join(new_row['label'])):
-                        rows.append(new_row) 
-            except:
-                pass
-
+            if 'no_line' not in self.CFG['data_config']['data_cleaning']:
+                rows.extend([{'title':row['title'],
+                                'genre':row['genre'],
+                                'mungchi':list(map(str, m)),
+                                'labels':l} for m, l in zip(row['line_sample_word_mungchi_integer'], row['line_sample_word_mungchi_string'])])
+                rows.extend([{'title':row['title'],
+                                'genre':row['genre'],
+                                'mungchi':list(map(str, m)),
+                                'labels':l} for m, l in zip(row['line_sample_line_mungchi_integer'], row['line_sample_line_mungchi_string'])])
+                rows.extend([{'title':row['title'],
+                                'genre':row['genre'],
+                                'mungchi':list(map(str, m)),
+                                'labels':l} for m, l in zip(row['verse_sample_word_mungchi_integer'], row['verse_sample_word_mungchi_string'])])
+                rows.extend([{'title':row['title'],
+                                'genre':row['genre'],
+                                'mungchi':list(map(str, m)),
+                                'labels':l} for m, l in zip(row['verse_sample_line_mungchi_integer'], row['verse_sample_line_mungchi_string'])])
+            if 'no_total' in self.CFG['data_config']['data_cleaning']:
+                continue
+            rows.extend([{'title':row['title'],
+                            'genre':row['genre'],
+                            'mungchi':list(map(str, m)),
+                            'labels':l} for m, l in zip(row['total_sample_word_mungchi_integer'], row['total_sample_word_mungchi_string'])])
+            rows.extend([{'title':row['title'],
+                            'genre':row['genre'],
+                            'mungchi':list(map(str, m)),
+                            'labels':l} for m, l in zip(row['total_sample_line_mungchi_integer'], row['total_sample_line_mungchi_string'])])
+        
         # Create a new DataFrame from the list of new rows
         x = pd.DataFrame(rows)
-        
-        x['num_syllable'] = x['mungchi'].apply(lambda y: sum([int(i) for i in y]))
-        
-        x = x[x['num_syllable'].between(3, 30)]
         
         # Reset the index of the new DataFrame
         x.reset_index(drop=True, inplace=True)
@@ -86,11 +100,8 @@ class Dataloader(pl.LightningDataModule):
             
 
         if self.CFG['train_config']['induce_align']:
-            x['labels'] = x.apply(lambda row: ' / '.join([f"({m}) {l}" for m, l in zip(row['mungchi'], row['label'])]), axis=1)
-        else:
-            x['labels'] = x.apply(lambda row: ' / '.join(row['label']), axis=1)
+            x['labels'] = x.apply(lambda row: ' / '.join([f"({m}) {l}" for m, l in zip(row['mungchi'], row['label'].split(' / '))]), axis=1)
         answers_list = x['labels'].tolist()
-        
         if train:
             inputs = self.tokenizer(
                 [p+a for p, a in zip(prompts_list, answers_list)],
@@ -170,8 +181,6 @@ class DataCleaning():
     data cleaning 코드
     """
     def genre_filtering(self, df):
-        df = df[~df['genre'].str.contains('랩')]
-        df = df[~df['genre'].str.contains('CCM')]
         df = df[~df['genre'].str.contains('J-POP')]
         df = df[~df['genre'].str.contains('-')]
                     
@@ -183,14 +192,8 @@ class DataCleaning():
         return df
     
     def title_cleaning(self, df):
-        df['title'] = df['title'].str.replace(r'\(.*\)', '')
-        df['title'] = df['title'].str.replace('\s?19금\s?', '')
-                    
-        return df
-    
-    def no_total(self, df):
-        df = df[df['sampling_strategy'] != 'total']
-        
+        df['title'] = df['title'].str.replace(r'\(.*\)', '', regex=True)
+        df['title'] = df['title'].str.replace('\s?19금\s?', '', regex=True)
         return df
 
 
@@ -207,6 +210,6 @@ def load_data(CFG):
     
     if CFG['train_config']['test_size']:
         train_valid_df, predict_df = train_test_split(df, shuffle = True, test_size=CFG['train_config']['test_size'], random_state=CFG['seed'])
-        df.to_json(f"{CFG['save_path']}/unpredicted.json", force_ascii=False, orient = 'records', indent=4)
+        predict_df.to_json(f"{CFG['save_path']}/unpredicted.json", force_ascii=False, orient = 'records', indent=4)
         return train_valid_df, predict_df
     return df, None

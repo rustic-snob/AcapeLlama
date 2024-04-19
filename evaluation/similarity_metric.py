@@ -12,8 +12,10 @@ def eval_semantic_sim(model, tokenizer, golden_lyrics, predict_mungchi_string, m
     predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
     
     # Encode the labels and convert to tensors
-    golden_lyrics_encoded = tokenizer.encode_plus(golden_lyrics_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
-    predict_mungchi_string_encoded = tokenizer.encode_plus(predict_mungchi_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
+    golden_lyrics_encoded = tokenizer.encode_plus(golden_lyrics_string, add_special_tokens=True, return_tensors='pt', padding='longest')
+    predict_mungchi_string_encoded = tokenizer.encode_plus(predict_mungchi_string, add_special_tokens=True, return_tensors='pt', padding='longest')
+    # golden_lyrics_encoded = tokenizer.encode_plus(golden_lyrics_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
+    # predict_mungchi_string_encoded = tokenizer.encode_plus(predict_mungchi_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
 
     # Get the embeddings
     with torch.no_grad():

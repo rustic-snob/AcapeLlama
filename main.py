@@ -1,3 +1,7 @@
+import os
+# os.environ["TOKENIZERS_PARALLELISM"] = "true"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 import argparse
 import yaml
 import lightning.pytorch as pl
@@ -10,9 +14,7 @@ from utils.utils import prepare_experiment, load_callbacks
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from lightning.pytorch.strategies import DeepSpeedStrategy
 
-import os
-# os.environ["TOKENIZERS_PARALLELISM"] = "true"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -73,12 +75,7 @@ if __name__ == "__main__":
                          enable_checkpointing=False,
                          accumulate_grad_batches=4
                          )
-    # if trainer.global_rank == 0:
-    #     wandb_logger.experiment.config.update(CFG)    
+    if trainer.global_rank == 0:
+        wandb_logger.experiment.config.update(CFG)    
     """---fit---"""
     trainer.fit(model=model, datamodule=dataloader)
-    
-    """---Predict---"""
-    breakpoint()
-    output = trainer.predict(model=model, datamodule=dataloader)
-    result = [i for j in output for i in j]

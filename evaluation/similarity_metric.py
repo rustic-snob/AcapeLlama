@@ -12,8 +12,8 @@ def eval_semantic_sim(model, tokenizer, golden_lyrics, predict_mungchi_string, m
     predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
     
     # Encode the labels and convert to tensors
-    golden_lyrics_encoded = tokenizer.encode_plus(golden_lyrics_string, add_special_tokens=True, return_tensors='pt', padding='longest')
-    predict_mungchi_string_encoded = tokenizer.encode_plus(predict_mungchi_string, add_special_tokens=True, return_tensors='pt', padding='longest')
+    golden_lyrics_encoded = tokenizer.encode_plus(golden_lyrics_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
+    predict_mungchi_string_encoded = tokenizer.encode_plus(predict_mungchi_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
     # golden_lyrics_encoded = tokenizer.encode_plus(golden_lyrics_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
     # predict_mungchi_string_encoded = tokenizer.encode_plus(predict_mungchi_string, add_special_tokens=True, return_tensors='pt', padding='max_length', truncation=True, max_length=max_length)
 
@@ -23,8 +23,8 @@ def eval_semantic_sim(model, tokenizer, golden_lyrics, predict_mungchi_string, m
         predict_mungchi_string_output = model(**predict_mungchi_string_encoded)
         
     # Apply mean pooling to get a single vector per label
-    golden_lyrics_embeddings = golden_lyrics_output[0].mean(dim=1)
-    predict_mungchi_string_embeddings = predict_mungchi_string_output[0].mean(dim=1)
+    golden_lyrics_embeddings = golden_lyrics_output[0][:, 0, :]
+    predict_mungchi_string_embeddings = predict_mungchi_string_output[0][:, 0, :]
 
     # Calculate cosine similarity
     similarity = cosine_similarity(golden_lyrics_embeddings, predict_mungchi_string_embeddings)
@@ -33,6 +33,22 @@ def eval_semantic_sim(model, tokenizer, golden_lyrics, predict_mungchi_string, m
     return similarity[0][0]
 
 # lexical similarity
+def eval_lexical_sim_precision(golden_lyrics, predict_mungchi_string):
+    # 문장을 띄어쓰기 기준으로 토큰화
+    predict_mungchi = predict_mungchi_string.replace(' / ', ' ')
+    
+    long_tokens = set(golden_lyrics.split())
+    short_tokens = predict_mungchi.split()
+    
+    # 짧은 문장의 토큰이 긴 문장의 토큰 목록에 몇 번 등장하는지 세기
+    common_tokens_count = sum(1 for token in short_tokens if token in long_tokens)
+    
+    # 정밀도 계산: 긴 문장에 포함된 짧은 문장 토큰의 수를 짧은 문장의 토큰 수로 나눔
+    if len(short_tokens) == 0:
+        return 0  # 짧은 문장에 토큰이 없으면 정밀도는 0
+    precision = common_tokens_count / len(short_tokens)
+    return precision
+
 def calculate_bleu(reference_texts, candidate_text):
     reference_tokens = [ref.split() for ref in reference_texts]
     candidate_tokens = candidate_text.split()

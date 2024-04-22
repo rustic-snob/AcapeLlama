@@ -33,6 +33,85 @@ def eval_semantic_sim(model, tokenizer, golden_lyrics, predict_mungchi_string, m
     return similarity[0][0]
 
 # lexical similarity
+def eval_lexical_sim_levenshtein(golden_lyrics, predict_mungchi_string):
+    golden_lyrics_string = golden_lyrics
+    predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
+    
+    # Calculate the Levenshtein distance
+    return levenshtein_distance(golden_lyrics_string, predict_mungchi_string)
+
+def eval_our_lexical_sim(golden_lyrics, predict_mungchi_string):
+    golden_lyrics_string = golden_lyrics.replace('\n\n', '\n')
+    golden_lyrics_string = golden_lyrics_string.replace('\n', ' ')
+    predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
+    
+    golden_lyrics_list = golden_lyrics_string.split(' ')
+    predict_mungchi_list = predict_mungchi_string.split(' ')
+    
+    similarity_matrix = get_similarity_matrix(golden_lyrics_list, predict_mungchi_list)
+    
+    final_similarity_score, score_list = calculate_similarity_score(similarity_matrix)
+    
+    return final_similarity_score, score_list
+
+def levenshtein_distance(s1, s2):
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    # len(s1) >= len(s2)
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
+
+def levenshtein_similarity(s1, s2):
+    distance = levenshtein_distance(s1, s2)
+    # Normalize the distance to get a similarity score between 0 and 1
+    # The similarity is higher when the Levenshtein distance is smaller.
+    # If the strings are identical, the distance is 0, so the similarity is 1.
+    similarity = 1 - distance / max(len(s1), len(s2))
+    return similarity
+
+def get_similarity_matrix(original_lyrics, generated_lyrics):
+# Placeholder lists for demonstration, these should be replaced with actual data extracted from the images
+
+    # Initialize an empty matrix with dimensions based on the lists' lengths.
+    similarity_matrix = np.zeros((len(original_lyrics), len(generated_lyrics)))
+
+    # Fill the similarity matrix with the Levenshtein similarity scores.
+    for i, original in enumerate(original_lyrics):
+        for j, generated in enumerate(generated_lyrics):
+            similarity_matrix[i][j] = levenshtein_similarity(original, generated)
+
+    # Display the similarity matrix
+    return similarity_matrix
+
+def calculate_similarity_score(similarity_matrix):
+    score_list = []
+
+    while similarity_matrix.size > 0:
+        # Find the indices of the maximum value in the similarity matrix.
+        i, j = np.unravel_index(similarity_matrix.argmax(), similarity_matrix.shape)
+        # Append the highest similarity score to the score list.
+        score_list.append(similarity_matrix[i][j])
+        # Delete the corresponding row and column.
+        similarity_matrix = np.delete(similarity_matrix, i, 0)  # Delete row
+        similarity_matrix = np.delete(similarity_matrix, j, 1)  # Delete column
+
+    # Calculate the average of the score list as the final similarity score.
+    final_similarity_score = np.mean(score_list)
+    return final_similarity_score, score_list
+
 def eval_lexical_sim_precision(golden_lyrics, predict_mungchi_string):
     # 문장을 띄어쓰기 기준으로 토큰화
     predict_mungchi = predict_mungchi_string.replace(' / ', ' ')
@@ -59,32 +138,6 @@ def eval_lexical_sim_bleu(golden_lyrics, predict_mungchi_string):
     predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
     
     return calculate_bleu(golden_lyrics_string_in_list, predict_mungchi_string)
-
-def levenshtein_distance(s1, s2):
-    if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
-
-    if len(s2) == 0:
-        return len(s1)
-
-    previous_row = range(len(s2) + 1)
-    for i, c1 in enumerate(s1):
-        current_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1
-            deletions = current_row[j] + 1
-            substitutions = previous_row[j] + (c1 != c2)
-            current_row.append(min(insertions, deletions, substitutions))
-        previous_row = current_row
-
-    return previous_row[-1]
-
-def eval_lexical_sim_levenshtein(golden_lyrics, predict_mungchi_string):
-    golden_lyrics_string = golden_lyrics
-    predict_mungchi_string = predict_mungchi_string.replace(' / ', ' ')
-    
-    # Calculate the Levenshtein distance
-    return levenshtein_distance(golden_lyrics_string, predict_mungchi_string)
 
 def cosine_sim(text1, text2):
     vectorizer = CountVectorizer()

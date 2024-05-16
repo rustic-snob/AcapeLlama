@@ -1,4 +1,4 @@
-model_names="roberta-base kf-deberta-base"
+model_names="kf-deberta-base roberta-base"
 batch_sizes="bsz-4"
 
 for MODEL_NAME in $model_names; do

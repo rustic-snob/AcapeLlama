@@ -50,7 +50,7 @@ def train(train_loader, val_loader, model, criterion, optimizer, scheduler, epoc
         
         total_loss += loss.item()
 
-        if batch_idx % 10 == 0:
+        if batch_idx % validation_step == 0:
             print(f'Step {batch_idx}, Loss: {loss.item()}')
 
         wandb.log({'train_loss': loss.item()})

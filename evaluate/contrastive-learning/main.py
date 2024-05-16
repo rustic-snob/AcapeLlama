@@ -14,13 +14,14 @@ def main(CFG: omegaconf.DictConfig):
     set_seed(CFG.seed)
     set_wandb(config=CFG)
     
+    os.makedirs(CFG.DATASET.dataset_dir, exist_ok=True)
+    os.makedirs(CFG.RESULT.result_dir, exist_ok=True)
+
     model_dir_path = make_model_directory(config=CFG)
     logger = get_logger(model_dir_path=model_dir_path)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f">> Set configurations, {device}")
     
-    if not os.path.exists(CFG.DATASET.dataset_dir):
-        os.makedirs(CFG.DATASET.dataset_dir)
     train_csv_path = os.path.join(CFG.DATASET.dataset_dir, 'combined_train_dataframe.csv')
     test_csv_path = os.path.join(CFG.DATASET.dataset_dir, 'combined_test_dataframe.csv')
     

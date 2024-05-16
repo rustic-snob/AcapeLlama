@@ -26,3 +26,27 @@
 |  |-- model_exp.sh
 |  |-- bsz_exp.sh
 ```
+
+## Re-produce
+1. git clone
+```bash
+git clone -b eval/contrastive-learning https://github.com/rustic-snob/AcapeLlama.git
+git checkout eval/contrastive-learning
+```
+2. docker
+3. tmux
+```bash
+# If you will use 'tmux'
+apt-get update
+apt-get install tmux # y
+tmux new
+```
+4. python main.py using bash file
+```bash
+# run exp 1,2,3
+bash scripts/@@@.sh
+# wandb option
+- 2 enter
+- wandb.ai > login > User settings(upper right) > Danger Zone > API keys > Reveal > Copy
+- Paste enter
+```

@@ -1,5 +1,5 @@
 DATASET:
-  dataset_dir: /workspace/codes/dataset/
+  dataset_dir: ./dataset/
   token_bsz: 1
 
 MODEL:
@@ -18,7 +18,7 @@ TRAIN:
     eta_min: 0.00001
 
 RESULT:
-  result_dir: /workspace/codes/results/
+  result_dir: ./results/
   save_freq: 1
 
 seed: 42

@@ -1,0 +1,26 @@
+DATASET:
+  dataset_dir: /workspace/codes/dataset/
+  token_bsz: 1
+
+MODEL:
+  model_name: klue/roberta-base
+  loss_name: ContrastiveLoss
+  pretrained: True
+
+TRAIN:
+  num_workers: 4
+  batch_size: 4
+  epochs: 1
+  valid_step: 100
+  LR:
+    init_learning_rate: 0.0001
+    T_max: 1
+    eta_min: 0.00001
+
+RESULT:
+  result_dir: /workspace/codes/results/
+  save_freq: 1
+
+seed: 42
+project_name: ACAPELLAMA_CONTRASTIVE_LEARNING_3
+run_name: default_1

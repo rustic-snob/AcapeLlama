@@ -11,7 +11,7 @@ TRAIN:
   num_workers: 4
   batch_size: 4
   epochs: 1
-  valid_step: 100
+  valid_step: 1000
   LR:
     init_learning_rate: 0.0001
     T_max: 1
@@ -22,5 +22,5 @@ RESULT:
   save_freq: 1
 
 seed: 42
-project_name: ACAPELLAMA_CONTRASTIVE_LEARNING_3
+project_name: ACAPELLAMA_CONTRASTIVE_LEARNING
 run_name: default_1
